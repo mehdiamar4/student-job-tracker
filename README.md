@@ -3,6 +3,10 @@
 A full-stack web application for tracking job applications.  
 Built as a student project to practice frontend, backend, and database development with React, Node.js, Express, and PostgreSQL.
 
+## Screenshot
+
+![Student Job Tracker Main View](./screenshots/main-view.png)
+
 ## Features
 
 - Add a new job application
