@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            student-job-tracker-frontend/package-lock.json
+            student-job-tracker-backend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: student-job-tracker-frontend
+        run: npm ci
+
+      - name: Install backend dependencies
+        working-directory: student-job-tracker-backend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: student-job-tracker-frontend
+        run: npm run build
+
+      - name: Validate backend source
+        working-directory: student-job-tracker-backend
+        run: |
+          node --check server.js
+          node --check config/db.js
+
+      - name: Build Docker images
+        run: docker compose build
