@@ -1,119 +1,198 @@
 # Student Job Tracker
 
-A full-stack web application for tracking job applications.  
-Built as a student project to practice frontend, backend, and database development with React, Node.js, Express, and PostgreSQL.
+A containerized full-stack application for tracking student job applications. The project demonstrates a practical DevOps workflow around a React frontend, an Express API, PostgreSQL persistence, Docker Compose, GitHub Actions, Trivy image scanning, and a small Terraform definition for AWS EC2.
 
-## Screenshot
+## Architecture
 
-![Student Job Tracker Main View](./screenshots/main-view.png)
+```mermaid
+flowchart LR
+    User[Browser] -->|HTTP port 80| Frontend[Frontend container<br/>Nginx + React]
+    Frontend -->|/api proxied to backend:5050| Backend[Backend container<br/>Node.js + Express]
+    Backend -->|PostgreSQL port 5432| Database[(PostgreSQL 18)]
+    Database --- Volume[(Docker named volume)]
+```
+
+The browser communicates only with Nginx. Nginx serves the React build and proxies `/api` requests across the private Compose network to the backend. The backend connects to PostgreSQL using the Compose service name `db`.
 
 ## Features
 
-- Add a new job application
-- View all saved applications
-- Delete applications
-- Filter applications by status
-- Colored status badges
-- Loading, error, and empty states
-- Persistent data storage with PostgreSQL
+- Add, view, filter, and delete job applications
+- Persist application data in PostgreSQL
+- Run the complete stack with Docker Compose
+- Initialize the database schema automatically
+- Build and validate the project in GitHub Actions
+- Scan application images for critical vulnerabilities with Trivy
+- Validate Terraform configuration without deploying infrastructure
 
-## Tech Stack
+## Technology stack
 
-### Frontend
+| Area | Technology |
+| --- | --- |
+| Frontend | React, Vite, JavaScript, CSS |
+| Web server and proxy | Nginx |
+| Backend | Node.js, Express |
+| Database | PostgreSQL 18 |
+| Containers | Docker, Docker Compose |
+| CI and security | GitHub Actions, Trivy |
+| Infrastructure as code | Terraform, AWS provider |
 
-- React
-- JavaScript
-- CSS
+## Docker architecture
 
-### Backend
+Docker Compose defines three services:
 
-- Node.js
-- Express
+| Service | Purpose | Exposure |
+| --- | --- | --- |
+| `frontend` | Builds React and serves it through Nginx | Host port `80` |
+| `backend` | Runs the Express API | Internal port `5050` |
+| `db` | Runs PostgreSQL 18 | Internal port `5432` |
 
-### Database
+The PostgreSQL service uses the `postgres_data` named volume so data survives container recreation. Its health check prevents the backend from starting before the database is ready. The root [`init.sql`](./init.sql) creates the `jobs` table when PostgreSQL initializes a new empty volume.
 
-- PostgreSQL
+Nginx serves the React single-page application and forwards `/api/*` to `backend:5050`. The `/api` prefix is removed before the request reaches Express, so `/api/jobs` becomes `/jobs` inside the backend.
 
-## Project Structure
+## Run locally with Docker Compose
 
-```txt
-student-job-tracker/
-├── student-job-tracker-frontend/
+### Prerequisites
+
+- Docker Desktop or Docker Engine with Docker Compose
+- Port `80` available on the host
+
+### Start the project
+
+```bash
+cp .env.example .env
+docker compose up --build -d
+docker compose ps
+```
+
+Open [http://localhost](http://localhost).
+
+Follow the logs:
+
+```bash
+docker compose logs -f
+```
+
+Stop the containers while keeping database data:
+
+```bash
+docker compose down
+```
+
+To remove the containers and permanently delete the local database volume:
+
+```bash
+docker compose down -v
+```
+
+## Environment variables
+
+Copy `.env.example` to `.env` before using Compose. The real `.env` file is ignored by Git.
+
+| Variable | Purpose |
+| --- | --- |
+| `POSTGRES_DB` | Database created by the PostgreSQL container |
+| `POSTGRES_USER` | PostgreSQL application user |
+| `POSTGRES_PASSWORD` | Password shared by PostgreSQL and the backend |
+
+Compose translates these values into the backend's `DB_NAME`, `DB_USER`, and `DB_PASSWORD` variables. It also sets the internal connection values `DB_HOST=db` and `DB_PORT=5432`.
+
+The values in `.env.example` are development examples, not production secrets. Use a unique password for any real deployment and never commit the resulting `.env` file.
+
+## API routes
+
+| Method | Route | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/jobs` | Return all applications |
+| `POST` | `/api/jobs` | Create an application |
+| `DELETE` | `/api/jobs/:id` | Delete an application |
+
+These are the browser-facing routes. Nginx removes `/api` before forwarding them to the equivalent Express routes.
+
+## CI and security pipeline
+
+The workflow in [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) runs on every push and pull request:
+
+1. Check out the repository and configure Node.js 22.
+2. Install frontend and backend dependencies with `npm ci`.
+3. Build the React frontend.
+4. Syntax-check the backend entry point and database configuration.
+5. Check Terraform formatting, initialize providers without a backend, and run `terraform validate`.
+6. Build the frontend and backend images with Docker Compose.
+7. Scan both images with Trivy and fail on `CRITICAL` vulnerabilities.
+
+The workflow validates and scans artifacts only. It does not publish images, create cloud resources, or deploy the application.
+
+## Terraform
+
+The configuration under [`infrastructure/terraform`](./infrastructure/terraform) defines:
+
+- One small Ubuntu EC2 instance
+- A security group allowing HTTP from the internet
+- SSH access restricted to a caller-supplied CIDR
+- Variables for AWS region, instance type, EC2 key-pair name, and SSH CIDR
+- An output containing the instance public IP
+
+`terraform.tfvars.example` documents safe example inputs. Environment-specific `terraform.tfvars` files are ignored and never used by CI.
+
+Validate the configuration locally:
+
+```bash
+terraform fmt -check -recursive
+terraform init -backend=false
+terraform validate
+```
+
+The Terraform configuration is designed and validated as Infrastructure as Code, but AWS deployment is intentionally not included. This repository does not claim that the EC2 infrastructure or application was deployed to AWS. The current AWS account is restricted by an Organizations Service Control Policy, so CI stops at offline formatting and validation.
+
+## Useful commands
+
+```bash
+# Build all application images
+docker compose --env-file .env.example build
+
+# Start or rebuild the local stack
+docker compose up --build -d
+
+# Inspect service state
+docker compose ps
+
+# View backend logs
+docker compose logs -f backend
+
+# Check the application through Nginx
+curl http://localhost/api/jobs
+
+# Build the frontend without Docker
+npm --prefix student-job-tracker-frontend ci
+npm --prefix student-job-tracker-frontend run build
+
+# Validate backend dependencies and syntax
+npm --prefix student-job-tracker-backend ci
+node --check student-job-tracker-backend/server.js
+node --check student-job-tracker-backend/config/db.js
+```
+
+## Screenshots
+
+### Application
+
+![Student Job Tracker application](./screenshots/main-view.png)
+
+## Project structure
+
+```text
+.
+├── .github/workflows/ci.yml
+├── infrastructure/terraform/
+├── screenshots/
 ├── student-job-tracker-backend/
-├── README.md
-└── .gitignore
+├── student-job-tracker-frontend/
+├── .env.example
+├── compose.yaml
+├── init.sql
+└── README.md
 ```
-
-## How to Run Locally
-
-### 1. Start the backend
-
-```bash
-cd student-job-tracker-backend
-npm install
-npm run dev
-```
-
-The backend runs on: `http://localhost:5050`
-
-### 2. Start the frontend
-
-```bash
-cd student-job-tracker-frontend
-npm install
-npm run dev
-```
-
-The frontend runs on: `http://localhost:5173`
-
-### 3. PostgreSQL setup
-
-Create a PostgreSQL database named: `student_job_tracker`
-
-Then create the jobs table with this SQL query:
-
-```sql
-CREATE TABLE jobs (
-    id BIGSERIAL PRIMARY KEY,
-    company VARCHAR(100) NOT NULL,
-    position VARCHAR(150) NOT NULL,
-    location VARCHAR(100),
-    status VARCHAR(30) NOT NULL,
-    date_applied DATE
-);
-```
-
-## API Routes
-
-**GET** `/jobs`  
-Returns all saved job applications.
-
-**POST** `/jobs`  
-Creates a new job application.
-
-**DELETE** `/jobs/:id`  
-Deletes a job application by id.
-
-## What I Learned
-
-Through this project, I practiced:
-
-- Building reusable React components
-- Managing state with `useState` and `useEffect`
-- Creating API routes with Express
-- Connecting Node.js to PostgreSQL
-- Writing SQL queries for real CRUD operations
-- Separating frontend UI logic from API communication
-- Handling loading, error, and empty states
-- Structuring a small full-stack project more clearly
-
-## Future Improvements
-
-- Edit existing job applications
-- Search by company or position
-- Authentication for personal accounts
-- Better UI design
-- Deployment
 
 ## Author
 

@@ -1,37 +1,42 @@
 services:
   backend:
+    image: student-job-tracker-backend:latest
     build:
       context: ./student-job-tracker-backend
-    ports:
-      - "5050:5050"
+    expose:
+      - "5050"
     environment:
       PORT: 5050
       DB_HOST: db
       DB_PORT: 5432
-      DB_NAME: student_job_tracker
-      DB_USER: dev
-      DB_PASSWORD: "1234"
+      DB_NAME: ${POSTGRES_DB:?Set POSTGRES_DB in .env}
+      DB_USER: ${POSTGRES_USER:?Set POSTGRES_USER in .env}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
     depends_on:
       db:
         condition: service_healthy
 
   frontend:
+    image: student-job-tracker-frontend:latest
     build:
       context: ./student-job-tracker-frontend
     ports:
-      - "3000:80"
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_started
 
   db:
     image: postgres:18
     environment:
-      POSTGRES_DB: student_job_tracker
-      POSTGRES_USER: dev
-      POSTGRES_PASSWORD: "1234"
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in .env}
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
     volumes:
       - postgres_data:/var/lib/postgresql
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U dev -d student_job_tracker"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 5

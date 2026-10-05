@@ -1,4 +1,4 @@
-const BASE_URL = "http://localhost:5050";
+const BASE_URL = "/api";
 
 export async function getJobs() {
   const response = await fetch(`${BASE_URL}/jobs`);

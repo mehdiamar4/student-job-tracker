@@ -1,0 +1,2 @@
+ssh_key_name     = "student-job-tracker-key"
+ssh_allowed_cidr = "203.0.113.10/32"

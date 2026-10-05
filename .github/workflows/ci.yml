@@ -42,8 +42,22 @@ jobs:
           node --check server.js
           node --check config/db.js
 
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Check Terraform formatting
+        run: terraform fmt -check -recursive infrastructure/terraform
+
+      - name: Initialize Terraform
+        working-directory: infrastructure/terraform
+        run: terraform init -backend=false -input=false
+
+      - name: Validate Terraform
+        working-directory: infrastructure/terraform
+        run: terraform validate
+
       - name: Build Docker images
-        run: docker compose build
+        run: docker compose --env-file .env.example build
 
       - name: Scan backend image
         uses: aquasecurity/trivy-action@v0.36.0
