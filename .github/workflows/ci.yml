@@ -45,16 +45,10 @@ jobs:
       - name: Build Docker images
         run: docker compose build
 
-      - name: Resolve Docker image IDs
-        id: images
-        run: |
-          echo "backend=$(docker compose images -q backend)" >> "$GITHUB_OUTPUT"
-          echo "frontend=$(docker compose images -q frontend)" >> "$GITHUB_OUTPUT"
-
       - name: Scan backend image
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: ${{ steps.images.outputs.backend }}
+          image-ref: student-job-tracker-backend:latest
           format: table
           severity: CRITICAL
           exit-code: "1"
@@ -62,7 +56,7 @@ jobs:
       - name: Scan frontend image
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: ${{ steps.images.outputs.frontend }}
+          image-ref: student-job-tracker-frontend:latest
           format: table
           severity: CRITICAL
           exit-code: "1"
