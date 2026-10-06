@@ -1,6 +1,15 @@
 # Student Job Tracker
 
-A containerized full-stack application for tracking student job applications. The project demonstrates a practical DevOps workflow around a React frontend, an Express API, PostgreSQL persistence, Docker Compose, GitHub Actions, Trivy image scanning, and a small Terraform definition for AWS EC2.
+Full-stack React, Node.js, and PostgreSQL application with a production-oriented DevOps setup using Docker, Docker Compose, Nginx, GitHub Actions, Trivy, and Terraform.
+
+### DevOps highlights
+
+- Three-service Docker Compose architecture
+- Nginx reverse proxy with internal backend networking
+- PostgreSQL persistence and health checks
+- Automated CI with GitHub Actions
+- `CRITICAL` vulnerability scanning with Trivy
+- Validated AWS infrastructure defined with Terraform
 
 ## Architecture
 
@@ -17,12 +26,8 @@ The browser communicates only with Nginx. Nginx serves the React build and proxi
 ## Features
 
 - Add, view, filter, and delete job applications
-- Persist application data in PostgreSQL
-- Run the complete stack with Docker Compose
-- Initialize the database schema automatically
-- Build and validate the project in GitHub Actions
-- Scan application images for critical vulnerabilities with Trivy
-- Validate Terraform configuration without deploying infrastructure
+- Persist application data across container restarts
+- Initialize the database schema automatically on a new volume
 
 ## Technology stack
 
@@ -138,12 +143,12 @@ The configuration under [`infrastructure/terraform`](./infrastructure/terraform)
 Validate the configuration locally:
 
 ```bash
-terraform fmt -check -recursive
-terraform init -backend=false
-terraform validate
+terraform -chdir=infrastructure/terraform fmt -check -recursive
+terraform -chdir=infrastructure/terraform init -backend=false
+terraform -chdir=infrastructure/terraform validate
 ```
 
-The Terraform configuration is designed and validated as Infrastructure as Code, but AWS deployment is intentionally not included. This repository does not claim that the EC2 infrastructure or application was deployed to AWS. The current AWS account is restricted by an Organizations Service Control Policy, so CI stops at offline formatting and validation.
+The Terraform configuration is fully designed and validated. Cloud deployment is not included because the available AWS account has organization-level EC2 restrictions.
 
 ## Useful commands
 
